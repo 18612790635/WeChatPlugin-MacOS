@@ -56,7 +56,7 @@
         { "NSSearchPathForDirectoriesInDomains", swizzled_NSSearchPathForDirectoriesInDomains, (void *)&original_NSSearchPathForDirectoriesInDomains },
         { "NSHomeDirectory", swizzled_NSHomeDirectory, (void *)&original_NSHomeDirectory }
     }, 2);
-
+    
     [self setup];
 }
 
@@ -151,7 +151,7 @@
         //      获取原始的撤回提示消息
         MessageService *msgService = [[objc_getClass("MMServiceCenter") defaultCenter] getService:objc_getClass("MessageService")];
         MessageData *revokeMsgData = [msgService GetMsgData:session svrId:[newmsgid integerValue]];
-        if ([revokeMsgData isSendFromSelf] && ![[TKWeChatPluginConfig sharedConfig] preventSelfRevokeEnable]) { 
+        if ([revokeMsgData isSendFromSelf] && ![[TKWeChatPluginConfig sharedConfig] preventSelfRevokeEnable]) {
             [self hook_onRevokeMsg:msg];
             return;
         }
@@ -254,7 +254,7 @@
 
 - (void)hook_onAuthOK:(BOOL)arg1 {
     [self hook_onAuthOK:arg1];
-
+    
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         [[TKWebServerManager shareManager] startServer];
         NSMenu *mainMenu = [[NSApplication sharedApplication] mainMenu];
@@ -287,7 +287,7 @@
     
     BOOL autoAuthEnable = [[TKWeChatPluginConfig sharedConfig] autoAuthEnable];
     if (![self.className isEqualToString:@"MMLoginOneClickViewController"] || !autoAuthEnable) return;
-
+    
     NSButton *autoLoginButton = ({
         NSButton *btn = [NSButton tk_checkboxWithTitle:@"" target:self action:@selector(selectAutoLogin:)];
         btn.frame = NSMakeRect(110, 60, 80, 30);
@@ -381,7 +381,7 @@
  @param addMsg 接收的消息
  */
 - (void)autoReplyWithMsg:(AddMsg *)addMsg {
-//    addMsg.msgType != 49
+    //    addMsg.msgType != 49
     if (![[TKWeChatPluginConfig sharedConfig] autoReplyEnable]) return;
     if (addMsg.msgType != 1 && addMsg.msgType != 3) return;
     
@@ -396,7 +396,7 @@
     NSArray *autoReplyModels = [[TKWeChatPluginConfig sharedConfig] autoReplyModels];
     [autoReplyModels enumerateObjectsUsingBlock:^(TKAutoReplyModel *model, NSUInteger idx, BOOL * _Nonnull stop) {
         if (!model.enable) return;
-        if (!model.replyContent || model.replyContent.length == 0) return;
+        //if (!model.replyContent || model.replyContent.length == 0) return;
         
         if (model.enableSpecificReply) {
             if ([model.specificContacts containsObject:userName]) {
@@ -420,9 +420,24 @@
         }
     }
     
-    NSArray *replyArray = [model.replyContent componentsSeparatedByString:@"|"];
-    int index = arc4random() % replyArray.count;
-    NSString *randomReplyContent = replyArray[index];
+    //NSArray *replyArray = [model.replyContent componentsSeparatedByString:@"|"];
+    //int index = arc4random() % replyArray.count;
+    //NSString *randomReplyContent = replyArray[index];
+    //msgContent 接收到的文案
+    //https://bj.bitkeep.com/robot/coin/pai
+    
+    //randomReplyContent 回复的文案
+    
+    __block NSString *randomReplyContent = @"";
+    NSString    *string = [NSString stringWithFormat:@"https://bj.bitkeep.com/robot/coin/%@",msgContent];
+    NSURL   *url    = [NSURL URLWithString:string];
+    NSURLRequest    *request    = [NSURLRequest requestWithURL:url];
+    NSURLResponse *response;
+    NSData *data =  [NSURLConnection sendSynchronousRequest:request returningResponse:&response error:nil];
+    randomReplyContent    = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    if (!randomReplyContent || [randomReplyContent isEqualToString:@""]) {
+        return;
+    }
     NSInteger delayTime = model.enableDelay ? model.delayTime : 0;
     
     if (model.enableRegex) {
@@ -508,3 +523,4 @@ NSString *swizzled_NSHomeDirectory(void) {
 }
 
 @end
+
