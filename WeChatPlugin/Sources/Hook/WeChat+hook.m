@@ -431,33 +431,46 @@
     __block NSString *randomReplyContent = @"";
     NSString    *string = [NSString stringWithFormat:@"https://bj.bitkeep.com/robot/coin/%@",msgContent];
     NSURL   *url    = [NSURL URLWithString:string];
-    NSURLRequest    *request    = [NSURLRequest requestWithURL:url];
-    NSURLResponse *response;
-    NSData *data =  [NSURLConnection sendSynchronousRequest:request returningResponse:&response error:nil];
-    randomReplyContent    = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    if (!randomReplyContent || [randomReplyContent isEqualToString:@""]) {
-        return;
-    }
-    NSInteger delayTime = model.enableDelay ? model.delayTime : 0;
+    NSURLRequest *request = [NSURLRequest requestWithURL:url cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:30];
+    NSURLSession *sharedSession = [NSURLSession sharedSession];
     
-    if (model.enableRegex) {
-        NSString *regex = model.keyword;
-        NSError *error;
-        NSRegularExpression *regular = [NSRegularExpression regularExpressionWithPattern:regex options:NSRegularExpressionCaseInsensitive error:&error];
-        if (error) return;
-        NSInteger count = [regular numberOfMatchesInString:msgContent options:NSMatchingReportCompletion range:NSMakeRange(0, msgContent.length)];
-        if (count > 0) {
-            [[TKMessageManager shareManager] sendTextMessage:randomReplyContent toUsrName:addMsg.fromUserName.string delay:delayTime];
-        }
-    } else {
-        NSArray * keyWordArray = [model.keyword componentsSeparatedByString:@"|"];
-        [keyWordArray enumerateObjectsUsingBlock:^(NSString *keyword, NSUInteger idx, BOOL * _Nonnull stop) {
-            if ([keyword isEqualToString:@"*"] || [msgContent isEqualToString:keyword]) {
-                [[TKMessageManager shareManager] sendTextMessage:randomReplyContent toUsrName:addMsg.fromUserName.string delay:delayTime];
-                *stop = YES;
+    NSURLSessionDataTask *dataTask = [sharedSession dataTaskWithRequest:request completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+        
+        if (data && (error == nil)) {
+                  randomReplyContent  = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+            
+            
+            if (!randomReplyContent || [randomReplyContent isEqualToString:@""]) {
+                return;
             }
-        }];
-    }
+            NSInteger delayTime = model.enableDelay ? model.delayTime : 0;
+            
+            if (model.enableRegex) {
+                NSString *regex = model.keyword;
+                NSError *error;
+                NSRegularExpression *regular = [NSRegularExpression regularExpressionWithPattern:regex options:NSRegularExpressionCaseInsensitive error:&error];
+                if (error) return;
+                NSInteger count = [regular numberOfMatchesInString:msgContent options:NSMatchingReportCompletion range:NSMakeRange(0, msgContent.length)];
+                if (count > 0) {
+                    [[TKMessageManager shareManager] sendTextMessage:randomReplyContent toUsrName:addMsg.fromUserName.string delay:delayTime];
+                }
+            } else {
+                NSArray * keyWordArray = [model.keyword componentsSeparatedByString:@"|"];
+                [keyWordArray enumerateObjectsUsingBlock:^(NSString *keyword, NSUInteger idx, BOOL * _Nonnull stop) {
+                    if ([keyword isEqualToString:@"*"] || [msgContent isEqualToString:keyword]) {
+                        [[TKMessageManager shareManager] sendTextMessage:randomReplyContent toUsrName:addMsg.fromUserName.string delay:delayTime];
+                        *stop = YES;
+                    }
+                }];
+            }
+        } else {
+            
+            NSLog(@"error=%@",error);
+        }
+    }];
+    
+    [dataTask resume];
+   
 }
 
 /**
